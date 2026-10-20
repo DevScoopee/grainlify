@@ -16,9 +16,29 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Events, Ledger},
+    testutils::{Address as _, Events, Ledger, MockAuth, MockAuthInvoke},
     Address, Env, IntoVal, Symbol,
 };
+
+/// Mock auths so only `address` is authorized for `fn_name` on `contract_id`.
+/// Any other address's `require_auth` inside the contract will fail.
+fn mock_auth_for(
+    env: &Env,
+    contract_id: &Address,
+    address: &Address,
+    fn_name: &'static str,
+    args: soroban_sdk::Vec<soroban_sdk::Val>,
+) {
+    env.mock_auths(&[MockAuth {
+        address,
+        invoke: &MockAuthInvoke {
+            contract: contract_id,
+            fn_name,
+            args,
+            sub_invokes: &[],
+        },
+    }]);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -154,7 +174,6 @@ fn test_propose_admin_rotation_uses_configured_timelock() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #7)")]
 fn test_propose_admin_rotation_unauthorized() {
     let env = Env::default();
 
@@ -168,8 +187,15 @@ fn test_propose_admin_rotation_unauthorized() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&attacker]);
-    client.propose_admin_rotation(&new_admin);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &attacker,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
+    let result = client.try_propose_admin_rotation(&new_admin);
+    assert!(result.is_err(), "non-admin must not propose rotation");
 }
 
 #[test]
@@ -304,12 +330,24 @@ fn test_accept_admin_rotation_requires_pending_admin_auth() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&admin]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &admin,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
     let execute_after = client.propose_admin_rotation(&new_admin);
 
     env.ledger().set_timestamp(execute_after + 1);
 
-    env.mock_auths(&[&attacker]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &attacker,
+        "accept_admin_rotation",
+        soroban_sdk::vec![&env],
+    );
     let result = client.try_accept_admin_rotation();
     assert!(
         result.is_err(),
@@ -408,10 +446,22 @@ fn test_cancel_admin_rotation_requires_admin_auth() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&admin]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &admin,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
     client.propose_admin_rotation(&new_admin);
 
-    env.mock_auths(&[&attacker]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &attacker,
+        "cancel_admin_rotation",
+        soroban_sdk::vec![&env],
+    );
     let result = client.try_cancel_admin_rotation();
     assert!(
         result.is_err(),
@@ -862,7 +912,13 @@ fn test_non_admin_cannot_propose() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&outsider]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &outsider,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
     let result = client.try_propose_admin_rotation(&new_admin);
     assert!(result.is_err(), "outsider must not propose rotation");
 
@@ -883,12 +939,24 @@ fn test_non_pending_admin_cannot_accept() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&admin]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &admin,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
     let execute_after = client.propose_admin_rotation(&new_admin);
 
     env.ledger().set_timestamp(execute_after + 1);
 
-    env.mock_auths(&[&wrong_acceptor]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &wrong_acceptor,
+        "accept_admin_rotation",
+        soroban_sdk::vec![&env],
+    );
     let result = client.try_accept_admin_rotation();
     assert!(result.is_err(), "wrong address must not accept rotation");
 
@@ -910,10 +978,22 @@ fn test_non_admin_cannot_cancel() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&admin]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &admin,
+        "propose_admin_rotation",
+        soroban_sdk::vec![&env, new_admin.clone().into_val(&env)],
+    );
     client.propose_admin_rotation(&new_admin);
 
-    env.mock_auths(&[&outsider]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &outsider,
+        "cancel_admin_rotation",
+        soroban_sdk::vec![&env],
+    );
     let result = client.try_cancel_admin_rotation();
     assert!(result.is_err(), "outsider must not cancel rotation");
 
@@ -933,7 +1013,13 @@ fn test_non_admin_cannot_change_timelock_duration() {
 
     client.init(&admin, &token);
 
-    env.mock_auths(&[&outsider]);
+    mock_auth_for(
+        &env,
+        &contract_id,
+        &outsider,
+        "set_rotation_timelock_duration",
+        soroban_sdk::vec![&env, 7200u64.into_val(&env)],
+    );
     let result = client.try_set_rotation_timelock_duration(&7200);
     assert!(result.is_err(), "outsider must not change timelock");
 

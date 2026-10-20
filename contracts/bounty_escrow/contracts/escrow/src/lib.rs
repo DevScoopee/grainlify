@@ -9559,6 +9559,8 @@ mod escrow_status_transition_tests {
 // #[cfg(test)] mod test_batch_failure_modes;
 #[cfg(test)]
 mod test_deadline_variants;
+#[cfg(test)]
+mod test_refund_states;
 // #[cfg(test)] mod test_dry_run_simulation;
 #[cfg(test)]
 mod test_e2e_upgrade_with_pause;
@@ -9581,6 +9583,10 @@ mod test_anonymization;
 #[cfg(test)]
 #[path = "tests/conversion_tests.rs"]
 mod test_conversion;
+
+#[cfg(test)]
+#[path = "tests/refund_state_coverage.rs"]
+mod test_refund_state_coverage;
 
 #[contractclient(name = "RouterClient")]
 pub trait Router {
