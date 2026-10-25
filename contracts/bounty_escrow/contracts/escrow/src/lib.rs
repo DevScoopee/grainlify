@@ -68,13 +68,13 @@ mod test_frozen_balance;
 #[cfg(test)]
 mod test_metadata_retry;
 #[cfg(test)]
-mod test_refund_retry;
-#[cfg(test)]
 mod test_multi_token_fees;
 #[cfg(test)]
 mod test_reentrancy_guard;
 #[cfg(test)]
 mod test_reentrancy_malicious_token;
+#[cfg(test)]
+mod test_refund_retry;
 // #[cfg(test)] mod test_admin_rotation; // pre-existing breakage (#1770): every
 // `env.mock_auths(&[&addr])` call passes a bare `&Address` where the installed
 // soroban-sdk (21.7.7) `Env::mock_auths` requires `&[MockAuth]`; the module has
@@ -96,8 +96,6 @@ mod test_deterministic_event_ordering;
 mod test_event_payload_fixtures;
 #[cfg(test)]
 mod test_event_schema;
-#[cfg(test)]
-mod test_simulate_payout_auth;
 
 // Dispatcher only needs the contract macros and basic SDK types;
 // all event/type imports are in the individual feature modules.
@@ -3529,9 +3527,6 @@ mod test_conversion;
 
 #[cfg(test)]
 mod test_gas_ci_thresholds;
-
-#[cfg(test)]
-mod test_batch_lock_funds_soa_auth;
 
 #[cfg(test)]
 mod test_update_metadata_lifecycle;

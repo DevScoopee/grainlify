@@ -1,5 +1,11 @@
-use crate::{validation::MAX_TAG_LEN, BountyEscrowContract, BountyEscrowContractClient};
-use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, String};
+use crate::{BountyEscrowContract, BountyEscrowContractClient};
+use soroban_sdk::{
+    testutils::{Address as _, Events as _, Ledger as _},
+    token, Address, Bytes, Env, String,
+};
+
+/// Mirrors the private `validation::MAX_TAG_LEN`.
+const MAX_TAG_LEN: usize = 50;
 
 fn setup() -> (Env, Address, BountyEscrowContractClient<'static>) {
     let env = Env::default();
@@ -45,11 +51,15 @@ fn test_notification_preferences_set_and_event() {
 
     let admin = Address::generate(&env);
     let token_admin = Address::generate(&env);
-    let token = create_token_contract(&env, &token_admin);
+    let token = token::Client::new(
+        &env,
+        &env.register_stellar_asset_contract_v2(token_admin)
+            .address(),
+    );
     client.init(&admin, &token.address);
 
     let depositor = Address::generate(&env);
-    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token.address);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token.address);
     token_admin_client.mint(&depositor, &1_000i128);
 
     let bounty_id = 77u64;
@@ -62,7 +72,7 @@ fn test_notification_preferences_set_and_event() {
 
     let prefs = 0b1010u32;
     let events_before = env.events().all().len();
-    client.set_notification_preferences(&depositor, &bounty_id, &prefs);
+    client.set_notification_preferences(&bounty_id, &prefs);
     let events_after = env.events().all().len();
     assert!(events_after > events_before);
 
@@ -83,8 +93,7 @@ fn test_set_notification_preferences_unknown_bounty() {
     let token = Address::generate(&env);
     client.init(&admin, &token);
 
-    let caller = Address::generate(&env);
-    client.set_notification_preferences(&caller, &999u64, &1u32);
+    client.set_notification_preferences(&999u64, &1u32);
 }
 
 #[test]
@@ -269,7 +278,14 @@ fn test_update_metadata_unauthorized_caller_panics_with_auth_error() {
 
     // Set empty auths so that require_auth will fail with Auth error
     env.set_auths(&[]);
-    client.update_metadata(&non_admin, &bounty_id, &repo_id, &issue_id, &bounty_type, &None);
+    client.update_metadata(
+        &non_admin,
+        &bounty_id,
+        &repo_id,
+        &issue_id,
+        &bounty_type,
+        &None,
+    );
 }
 
 #[test]
