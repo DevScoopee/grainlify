@@ -3529,6 +3529,8 @@ mod test_update_metadata_lifecycle;
 
 #[cfg(test)]
 mod test_refund_auth;
+#[cfg(test)]
+mod test_refund_lifecycle_states;
 
 // #[cfg(test)] mod test_update_metadata_boundaries; // pre-existing breakage (#2031): invalid assertions and missing escrow check
 
