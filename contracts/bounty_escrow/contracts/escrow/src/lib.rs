@@ -68,6 +68,8 @@ mod test_frozen_balance;
 #[cfg(test)]
 mod test_metadata_retry;
 #[cfg(test)]
+mod test_refund_retry;
+#[cfg(test)]
 mod test_multi_token_fees;
 #[cfg(test)]
 mod test_reentrancy_guard;
@@ -1739,6 +1741,13 @@ impl BountyEscrowContract {
         crate::release::partial_release(env, bounty_id, contributor, payout_amount)
     }
 
+    /// Refunds a locked escrow after its deadline, or early via an admin approval.
+    ///
+    /// Retrying a successful call is safe: the retry is refused with a typed
+    /// error before transferring tokens or emitting events. After a full refund
+    /// it fails with [`Error::FundsNotLocked`]; after an approved partial refund
+    /// the approval is consumed, so before the deadline it fails with
+    /// [`Error::DeadlineNotPassed`].
     pub fn refund(env: Env, bounty_id: u64) -> Result<(), Error> {
         crate::refund::refund(env, bounty_id)
     }
