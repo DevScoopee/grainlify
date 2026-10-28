@@ -53,9 +53,12 @@ jobs:
       - name: Install SDK dependencies
         working-directory: contracts/sdk
         run: npm ci
+      # wasm32v1-none, not wasm32-unknown-unknown: since Rust 1.82 the latter
+      # emits reference-types/multi-value, which the Soroban host rejects at
+      # upload with `HostError: Error(Context, InternalError)`.
       - uses: dtolnay/rust-toolchain@1.85.1
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
       - name: Start ephemeral Stellar network
         uses: stellar/quickstart@main
         with:
@@ -72,7 +75,7 @@ jobs:
             --network-passphrase 'Standalone Network ; February 2017'
           cargo build \
             --manifest-path contracts/program-escrow/Cargo.toml \
-            --target wasm32-unknown-unknown \
+            --target wasm32v1-none \
             --release
           stellar keys generate e2e
           secret="$(stellar keys secret e2e)"
@@ -83,8 +86,9 @@ jobs:
           curl -fsS "http://localhost:8000/friendbot?addr=$public_key" >/dev/null
           # program-escrow is a member of the contracts/ workspace, so its
           # artifact lands in contracts/target/, not the crate's own target/.
-          wasm=contracts/target/wasm32-unknown-unknown/release/program_escrow.wasm
+          wasm=contracts/target/wasm32v1-none/release/program_escrow.wasm
           test -f "$wasm" || { echo "::error::$wasm not found"; exit 1; }
+          echo "program_escrow.wasm: $(stat -c %s "$wasm") bytes"
           # Capture the exit status without letting `set -e` abort before the
           # CLI's error output is printed.
           deploy_status=0
