@@ -81,11 +81,19 @@ jobs:
           public_key="$(stellar keys public-key e2e)"
           test -n "$public_key"
           curl -fsS "http://localhost:8000/friendbot?addr=$public_key" >/dev/null
+          # program-escrow is a member of the contracts/ workspace, so its
+          # artifact lands in contracts/target/, not the crate's own target/.
+          wasm=contracts/target/wasm32-unknown-unknown/release/program_escrow.wasm
+          test -f "$wasm" || { echo "::error::$wasm not found"; exit 1; }
+          # Capture the exit status without letting `set -e` abort before the
+          # CLI's error output is printed.
+          deploy_status=0
           deployment_output="$(stellar contract deploy \
-            --wasm contracts/program-escrow/target/wasm32-unknown-unknown/release/program_escrow.wasm \
+            --wasm "$wasm" \
             --source-account e2e \
-            --network local 2>&1)"
+            --network local 2>&1)" || deploy_status=$?
           printf '%s\n' "$deployment_output"
+          test "$deploy_status" -eq 0
           contract_id="$(printf '%s\n' "$deployment_output" | grep -Eo 'C[A-Z2-7]{55}' | tail -n 1)"
           test -n "$contract_id"
           token_address="$(stellar contract id asset --asset native --network local)"
